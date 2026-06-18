@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reddit AI Employee Audit Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">Growth Tool</div>
+      <h1>Reddit Pain-to-AI Employee Lead Finder</h1>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn secondary" id="seedBtn" type="button"><i data-lucide="sparkles"></i>Seed Examples</button>
+      <button class="btn secondary" id="exportCsvBtn" type="button"><i data-lucide="table"></i>CSV</button>
+      <button class="btn primary" id="exportProofBtn" type="button"><i data-lucide="download"></i>Export Report</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Lead Pipeline</h2>
+          <span class="tag">30-day model</span>
+        </div>
+        <div class="metric-grid">
+          <div class="metric">
+            <span id="postCount">0</span>
+            <label>pain posts</label>
+          </div>
+          <div class="metric">
+            <span id="qualifiedCount">0</span>
+            <label>qualified</label>
+          </div>
+          <div class="metric">
+            <span id="visitorProjection">0</span>
+            <label>visitor model</label>
+          </div>
+          <div class="metric">
+            <span id="leadProjection">0</span>
+            <label>lead model</label>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Reddit Search</h2>
+          <span class="tag">manual-safe</span>
+        </div>
+        <label class="field">
+          <span>Keyword</span>
+          <select id="keywordSelect"></select>
+        </label>
+        <label class="field">
+          <span>Subreddit</span>
+          <select id="subredditSelect"></select>
+        </label>
+        <div class="button-row">
+          <button class="btn secondary" id="openSearchBtn" type="button"><i data-lucide="search"></i>Open Search</button>
+          <button class="btn ghost" id="copySearchBtn" type="button"><i data-lucide="copy"></i>Copy URL</button>
+        </div>
+        <p class="note">Use this to collect real posts, then paste the URL/title/body below. The tool drafts replies but does not auto-post.</p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Tool Workflow</h2>
+          <span class="tag">operator mode</span>
+        </div>
+        <ol class="workflow-list">
+          <li>Find a Reddit pain post.</li>
+          <li>Paste the post into the form.</li>
+          <li>Generate an AI employee audit.</li>
+          <li>Copy the helpful reply draft.</li>
+          <li>Track qualified leads in the dataset.</li>
+        </ol>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>AI + RAG</h2>
+          <span class="tag" id="serverModeTag">checking</span>
+        </div>
+        <div class="status-list">
+          <div><span>Gemini</span><strong id="aiStatus">Checking...</strong></div>
+          <div><span>Memory docs</span><strong id="ragStatus">0</strong></div>
+          <div><span>Storage</span><strong id="memoryPath">Local</strong></div>
+        </div>
+        <button class="btn secondary full" id="refreshStatusBtn" type="button"><i data-lucide="refresh-cw"></i>Refresh Status</button>
+      </section>
+    </aside>
+
+    <section class="workspace">
+      <section class="input-band batch-primary">
+        <div class="band-title">
+          <h2>Batch Reddit Post Processor</h2>
+          <p>Paste multiple Reddit URLs, subreddits, post headings, and descriptions/comments. Each line is matched by row number and gets its own tailored audit plus reply draft.</p>
+        </div>
+        <div class="batch-grid">
+          <label class="field">
+            <span>Reddit URLs, one per line</span>
+            <textarea id="batchUrls" rows="7" placeholder="https://www.reddit.com/r/smallbusiness/...&#10;https://www.reddit.com/r/sales/..."></textarea>
+          </label>
+          <label class="field">
+            <span>Subreddits, one per line</span>
+            <textarea id="batchSubreddits" rows="7" placeholder="smallbusiness&#10;sales&#10;recruiting"></textarea>
+          </label>
+          <label class="field">
+            <span>Post headings, one per line</span>
+            <textarea id="batchTitles" rows="7" placeholder="How do I reduce support tickets?&#10;Our leads go cold because follow-up is slow"></textarea>
+          </label>
+          <label class="field">
+            <span>Descriptions / comments, one per line</span>
+            <textarea id="batchBodies" rows="7" placeholder="We answer the same questions every day and replies are late.&#10;We use HubSpot but reps forget follow-ups."></textarea>
+          </label>
+        </div>
+        <div class="button-row right">
+          <button class="btn ghost" id="clearBatchBtn" type="button"><i data-lucide="eraser"></i>Clear Batch</button>
+          <button class="btn primary" id="batchAnalyzeBtn" type="button"><i data-lucide="list-plus"></i>Generate Tailored Drafts</button>
+        </div>
+        <p class="note">Direct bulk posting is disabled by design. This creates a review queue so every Reddit reply stays specific, useful, and manually approved.</p>
+      </section>
+
+      <section class="insight-grid">
+        <article class="insight-card">
+          <div class="panel-head">
+            <h2>30-Day Forecast</h2>
+            <span class="tag">live model</span>
+          </div>
+          <div id="forecastBars" class="bar-stack"></div>
+        </article>
+        <article class="insight-card">
+          <div class="panel-head">
+            <h2>Pain Mix</h2>
+            <span class="tag">records</span>
+          </div>
+          <div id="painMix" class="pain-mix"></div>
+        </article>
+        <article class="insight-card">
+          <div class="panel-head">
+            <h2>Lead Queue</h2>
+            <span class="tag">priority</span>
+          </div>
+          <div id="leadQueue" class="lead-queue"></div>
+        </article>
+      </section>
+
+      <section class="input-band">
+        <div class="band-title">
+          <h2>Single Post Add</h2>
+          <p>Use this for one-off posts. Batch mode above is faster for multiple URLs and topics.</p>
+        </div>
+        <div class="form-grid">
+          <label class="field">
+            <span>Reddit URL</span>
+            <input id="urlInput" type="url" placeholder="https://www.reddit.com/r/smallbusiness/...">
+          </label>
+          <label class="field">
+            <span>Subreddit</span>
+            <input id="subredditInput" type="text" placeholder="smallbusiness">
+          </label>
+          <label class="field span-2">
+            <span>Post title</span>
+            <input id="titleInput" type="text" placeholder="How do I stop spending hours on repetitive support emails?">
+          </label>
+          <label class="field span-2">
+            <span>Post / comment text</span>
+            <textarea id="bodyInput" rows="5" placeholder="Paste the problem here..."></textarea>
+          </label>
+          <label class="field">
+            <span>Company website</span>
+            <input id="websiteInput" type="url" placeholder="https://example.com">
+          </label>
+          <label class="field">
+            <span>Team size</span>
+            <input id="teamInput" type="number" min="1" placeholder="8">
+          </label>
+          <label class="field">
+            <span>Manual hours / week</span>
+            <input id="hoursInput" type="number" min="0" placeholder="10">
+          </label>
+          <label class="field">
+            <span>Urgency</span>
+            <select id="urgencyInput">
+              <option value="soon">Soon</option>
+              <option value="now">This month</option>
+              <option value="later">Later</option>
+            </select>
+          </label>
+        </div>
+        <div class="button-row right">
+          <button class="btn ghost" id="clearFormBtn" type="button"><i data-lucide="eraser"></i>Clear</button>
+          <button class="btn primary" id="analyzeBtn" type="button"><i data-lucide="wand-sparkles"></i>Generate Audit</button>
+        </div>
+      </section>
+
+      <section class="results-grid">
+        <article class="output-pane">
+          <div class="pane-head">
+            <h2>Audit Output</h2>
+            <div class="button-row">
+              <button class="btn secondary small" id="aiPolishBtn" type="button"><i data-lucide="bot"></i>Gemini Refine</button>
+              <button class="icon-btn" id="copyAuditBtn" type="button" title="Copy audit"><i data-lucide="copy"></i></button>
+            </div>
+          </div>
+          <div id="auditOutput" class="output empty">Add a Reddit pain conversation to generate a personalized audit.</div>
+        </article>
+
+        <article class="output-pane">
+          <div class="pane-head">
+            <h2>Reply Draft</h2>
+            <button class="icon-btn" id="copyReplyBtn" type="button" title="Copy reply"><i data-lucide="copy"></i></button>
+          </div>
+          <div id="replyOutput" class="output empty">The reply will be help-first and manually reviewable.</div>
+        </article>
+      </section>
+
+      <section class="ai-rag-grid">
+        <article class="table-section">
+          <div class="table-head">
+            <div>
+              <h2>AI Strategy Coach</h2>
+              <p>Ask about the current records, the assignment, or the next best operator move.</p>
+            </div>
+            <div class="button-row">
+              <button class="btn secondary" id="analyzeFactorsBtn" type="button"><i data-lucide="scan-search"></i>Analyze Factors</button>
+              <button class="btn primary" id="askCoachBtn" type="button"><i data-lucide="message-square-text"></i>Ask Gemini</button>
+            </div>
+          </div>
+          <div class="coach-body">
+            <textarea id="coachInput" rows="4" placeholder="Example: Which three Reddit posts should I prioritize first and why?"></textarea>
+            <div id="coachOutput" class="output empty">Gemini answers will appear here when the local server is running.</div>
+            <div id="coachSources" class="source-list"></div>
+          </div>
+        </article>
+
+        <article class="table-section">
+          <div class="table-head">
+            <div>
+              <h2>RAG Memory Search</h2>
+              <p>Search local project memory, vetted library notes, and saved dashboard records.</p>
+            </div>
+            <button class="btn secondary" id="ragSearchBtn" type="button"><i data-lucide="database-zap"></i>Search</button>
+          </div>
+          <div class="coach-body">
+            <input id="ragQuery" type="text" placeholder="Search project memory...">
+            <div id="ragResults" class="source-list large"></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="table-section">
+        <div class="table-head">
+          <div>
+            <h2>Comment Review Feed</h2>
+            <p>Tailored Reddit reply drafts for every selected prospect. Copy manually after review.</p>
+          </div>
+          <div class="button-row">
+            <button class="btn secondary" id="copyAllRepliesBtn" type="button"><i data-lucide="copy"></i>Copy All Drafts</button>
+            <button class="btn ghost" id="openAllUrlsBtn" type="button"><i data-lucide="external-link"></i>Open URLs</button>
+          </div>
+        </div>
+        <div id="commentFeed" class="comment-feed"></div>
+      </section>
+
+      <section class="table-section">
+        <div class="table-head">
+          <div>
+            <h2>Execution Dataset</h2>
+            <p>Your working queue of Reddit prospects, pain categories, AI employee recommendations, and lead scores.</p>
+          </div>
+          <button class="btn danger" id="resetBtn" type="button"><i data-lucide="trash-2"></i>Reset</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Pain</th>
+                <th>Subreddit</th>
+                <th>AI Employee</th>
+                <th>Score</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="recordsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
