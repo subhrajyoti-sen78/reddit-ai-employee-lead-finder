@@ -1,0 +1,14 @@
+{
+  "name": "reddit-ai-audit-tool",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local-first Reddit pain-to-AI employee lead finder with Gemini and RAG.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check app.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
