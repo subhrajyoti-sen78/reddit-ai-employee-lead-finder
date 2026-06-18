@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'reddit-ai-audit-engine-v1';
+const ACCESS_TOKEN_KEY = 'reddit-ai-dashboard-access-token';
 const SERVER_MODE = window.location.protocol !== 'file:';
 
 const keywords = [
@@ -568,14 +569,27 @@ async function apiRequest(path, options = {}) {
   if (!SERVER_MODE) {
     throw new Error('Open the local server link to use Gemini and RAG.');
   }
-  const response = await fetch(path, {
-    method: options.method || 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {})
-    },
-    body: options.body ? JSON.stringify(options.body) : undefined
-  });
+  const makeRequest = async () => {
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY) || '';
+    return fetch(path, {
+      method: options.method || 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'X-Dashboard-Token': token } : {}),
+        ...(options.headers || {})
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined
+    });
+  };
+
+  let response = await makeRequest();
+  if (response.status === 401) {
+    const token = window.prompt('Enter dashboard access token');
+    if (token) {
+      localStorage.setItem(ACCESS_TOKEN_KEY, token.trim());
+      response = await makeRequest();
+    }
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.error || 'Local API request failed.');
