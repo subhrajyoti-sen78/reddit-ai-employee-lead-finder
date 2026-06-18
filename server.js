@@ -516,4 +516,5 @@ if (require.main === module) {
   });
 }
 
-module.exports = { appHandler };
+module.exports = appHandler;
+module.exports.appHandler = appHandler;
