@@ -80,6 +80,33 @@ function sendText(res, status, text) {
   res.end(text);
 }
 
+function isLocalHost(hostHeader) {
+  const host = String(hostHeader || '').split(':')[0].toLowerCase();
+  return ['localhost', '127.0.0.1', '::1', '[::1]'].includes(host);
+}
+
+function dashboardToken() {
+  return process.env.DASHBOARD_ACCESS_TOKEN || process.env.ADMIN_TOKEN || '';
+}
+
+function requestToken(req) {
+  const auth = String(req.headers.authorization || '');
+  if (auth.toLowerCase().startsWith('bearer ')) return auth.slice(7).trim();
+  return String(req.headers['x-dashboard-token'] || '').trim();
+}
+
+function requireApiAccess(req, res) {
+  const token = dashboardToken();
+  if (!token && isLocalHost(req.headers.host)) return true;
+  if (!token) {
+    sendJson(res, 503, { error: 'Dashboard access token is not configured.' });
+    return false;
+  }
+  if (requestToken(req) === token) return true;
+  sendJson(res, 401, { error: 'Dashboard access token required.' });
+  return false;
+}
+
 function clientIp(req) {
   return req.socket.remoteAddress || 'local';
 }
@@ -98,6 +125,12 @@ function checkRateLimit(req) {
 }
 
 async function readJson(req) {
+  const contentType = String(req.headers['content-type'] || '').toLowerCase();
+  if (req.method !== 'GET' && contentType && !contentType.includes('application/json')) {
+    const error = new Error('Content-Type must be application/json.');
+    error.status = 415;
+    throw error;
+  }
   return new Promise((resolve, reject) => {
     let size = 0;
     let raw = '';
@@ -296,6 +329,8 @@ function factorsPrompt(context, selectedRecord, records) {
 }
 
 async function handleApi(req, res, parsedUrl) {
+  if (!requireApiAccess(req, res)) return;
+
   if (req.method === 'GET' && parsedUrl.pathname === '/api/status') {
     const docs = await loadDocuments({ sourcesDir: SOURCES_DIR });
     sendJson(res, 200, {
@@ -409,7 +444,24 @@ async function serveStatic(req, res, parsedUrl) {
   const cleanPath = decodeURIComponent(parsedUrl.pathname === '/' ? '/index.html' : parsedUrl.pathname);
   const target = path.normalize(path.join(ROOT, cleanPath));
   const relativeTarget = path.relative(ROOT, target);
-  if (relativeTarget.startsWith('..') || path.isAbsolute(relativeTarget)) {
+  const relativeParts = relativeTarget.split(path.sep).filter(Boolean);
+  const blockedNames = new Set([
+    '.env',
+    '.env.example',
+    '.gitignore',
+    'server.js',
+    'vercel.json',
+    'package.json',
+    'package-lock.json'
+  ]);
+  const blockedFolders = new Set(['.git', '.vercel', 'node_modules', 'rag-knowledge-system']);
+  if (
+    relativeTarget.startsWith('..') ||
+    path.isAbsolute(relativeTarget) ||
+    relativeParts.some((part) => part.startsWith('.')) ||
+    relativeParts.some((part) => blockedFolders.has(part)) ||
+    blockedNames.has(path.basename(target))
+  ) {
     sendText(res, 403, 'Forbidden');
     return;
   }
